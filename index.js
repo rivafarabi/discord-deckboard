@@ -9,7 +9,7 @@ const { Extension, log, INPUT_METHOD, PLATFORMS } = require('deckboard-kit');
 
 class DiscordExtension extends Extension {
 	constructor(props) {
-		super(props);
+		super();
 		this.setValue = props.setValue;
 		this._redirectUri = 'https://discord.com';
 		this._scopes = [
@@ -24,6 +24,26 @@ class DiscordExtension extends Extension {
 
 		this.name = 'Discord Deckboard';
 		this.platforms = [PLATFORMS.WINDOWS, PLATFORMS.MAC, PLATFORMS.LINUX];
+		this.configs = {
+			discordClientId:{
+				type: "text",
+				name: "Client ID",
+				descriptions: "Client ID in OAuth2 App",
+				value: "",
+			},
+			discordClientSecret:{
+				type: "text",
+				name: "Client Secret (not distribute)",
+				descriptions: "Client Secret in OAuth2 App",
+				value: "",
+			},
+			discordAccessToken:{
+				type: "text",
+				name: "Access Token (not distribute)",
+				descriptions: "Access Token in OAuth2 App",
+				value: "",
+			},
+		};
 		this.inputs = [
 			{
 				label: 'Microphone',
@@ -80,82 +100,105 @@ class DiscordExtension extends Extension {
 				value: "disconnect-voice",
 				icon: 'phone-slash',
 				color: '#5865F2',
-			}
+			},
+			// {
+			// 	label: 'Connect Voice Channel',
+			// 	value: 'connect-voice',
+			// 	icon: 'phone',
+			// 	color: '#5865F2',
+			// 	input: [
+			// 		{
+			// 			label: "Server",
+			// 			ref: "guildId",
+			// 			type: 'input:autocomplete',
+			// 		}
+			// 	],
+			// },
+			{
+				label: 'Execute Action',
+				value: 'streamerbot-action2',
+				icon: 'robot',
+				color: '#5b00a0',
+				input: [
+					{
+						label: 'Action',
+						ref: 'actionId',
+						type: 'input:autocomplete'
+					},
+					{
+						label: 'Arguments',
+						ref: 'args',
+						type: 'input:text'
+					}
+				]
+			},
 		];
-		this.configs = {
-			discordClientId:{
-				type: "text",
-				name: "Client ID",
-				descriptions: "Client ID in OAuth2 App",
-				value: "",
-			},
-			discordClientSecret:{
-				type: "text",
-				name: "Client Secret (not distribute)",
-				descriptions: "Client Secret in OAuth2 App",
-				value: "",
-			},
-			discordAccessToken:{
-				type: "text",
-				name: "Access Token (not distribute)",
-				descriptions: "Access Token in OAuth2 App",
-				value: "",
-			},
-		};
 		this.initExtension();
 	}
 
 	// Executes when the extensions loaded every time the app start.
 	initExtension() {
-		this.initPlugin();
-	}
-
-	get selections() {
-		return [
-			{
-				header: this.name,
-			}, ...this.inputs,
-		];
-	}
-
-
-
-	getAutocompleteOptions(ref) {
-		// switch (ref) {
-		// 	case "mediaID":
-		// 		return this.getMemeboxAction();
-		// 	default:
-		// 		return [];
-		// }
-
-	}
-
-	async initPlugin() {
 		try {
-
-			if(this.configs.discordClientId.value === '')
+			if(this.configs.discordClientId.value === '' || this.configs.discordClientId.value === null)
 				return;
 
-			await this._client.login({
+			log.warn('INIT Discord...')
+
+			this._client.login({
 				clientId: this.configs.discordClientId.value,
 				clientSecret: this.configs.discordClientSecret.value,
 				scopes: this._scopes,
 				redirectUri: this._redirectUri,
 				accessToken: this.configs.discordAccessToken.value
+			}).then(async _ => {
+				if(this.configs.discordAccessToken.value === '' || this.configs.discordAccessToken.value === null ){
+					return dialog.showMessageBox(null,{
+						type: 'info',
+						buttons: ['Copy','OK'],
+						defaultId: 0,
+						title: "Token Discord",
+						message: `Copy access token and paste in config in Config(Cog) > Extensions > Config > 'Access Token (not distribute)'`
+					},_ => ncp.copy(this._client.accessToken));
+				}
+				log.error(await this.getAutocompleteOptions('actionId'));
 			});
-			if(this.configs.discordAccessToken.value === ''){
-				await dialog.showMessageBox(null,{
-					type: 'info',
-					buttons: ['Copy','OK'],
-					defaultId: 0,
-					title: "Token Discord",
-					message: `Copy access token and paste in config in Config(Cog) > Extensions > Config > 'Access Token (not distribute)'\nAccess Token: ${this._client.accessToken}`
-				},_ => ncp.copy(this._client.accessToken));
-			}
+
 		}catch (e){
 			log.error(e);
 		}
 	}
+
+	update(){
+	}
+
+	get selections() {
+		return [{
+			header: this.name
+		}, ...this.inputs];
+	}
+
+	async getAutocompleteOptions(ref) {
+		log.error(ref);
+		switch(ref) {
+			case 'actionId':
+				return await this.getGuilds();
+			default:
+				return []
+		}
+
+	}
+
+	async getGuilds() {
+		const {guilds} = await this._client.getGuilds();
+		return guilds.map(
+			x => ({
+				value: x.id,
+				label: x.name,
+			})
+		);
+	}
+
+
 
 	async _microphoneControl(args){
 		switch (args.action){
@@ -190,7 +233,7 @@ class DiscordExtension extends Extension {
 	}
 
 	async _connectVoiceControl(args){
-		return await this._client.selectVoiceChannel(args.channel_id)
+		return await this._client.selectVoiceChannel(args.channel_id,{force: true});
 	}
 
 	execute(action, args) {
@@ -205,4 +248,4 @@ class DiscordExtension extends Extension {
 	};
 }
 
-module.exports = sendData => new DiscordExtension(sendData);
+module.exports = (sendData) => new DiscordExtension(sendData);
