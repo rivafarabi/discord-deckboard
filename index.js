@@ -160,15 +160,14 @@ class DiscordExtension extends Extension {
 						message: `Copy access token and paste in config in Config(Cog) > Extensions > Config > 'Access Token (not distribute)'`
 					},_ => ncp.copy(this._client.accessToken));
 				}
-				log.error(await this.getAutocompleteOptions('actionId'));
+				log.error(await this.getGuilds())
 			});
+
 
 		}catch (e){
 			log.error(e);
 		}
-	}
-
-	update(){
+		log.error(this.getGuilds())
 	}
 
 	get selections() {
@@ -177,28 +176,24 @@ class DiscordExtension extends Extension {
 		}, ...this.inputs];
 	}
 
-	async getAutocompleteOptions(ref) {
+	getAutocompleteOptions(ref) {
 		log.error(ref);
 		switch(ref) {
 			case 'actionId':
-				return await this.getGuilds();
+				return this.getGuilds();
 			default:
 				return []
 		}
 
 	}
 
-	async getGuilds() {
-		const {guilds} = await this._client.getGuilds();
-		return guilds.map(
+	getGuilds() {
+		return this._client.getGuilds().then(({guilds}) => guilds.map(
 			x => ({
 				value: x.id,
 				label: x.name,
-			})
-		);
+			})));
 	}
-
-
 
 	async _microphoneControl(args){
 		switch (args.action){
