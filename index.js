@@ -168,6 +168,8 @@ class DiscordExtension extends Extension {
 
   _labelMuteDeaf(value) {
     return value ? 'OFF' : 'ON';
+  }
+  
   getAutocompleteOptions(ref) {
     switch (ref) {
       case "connectGuild":
